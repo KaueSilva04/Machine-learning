@@ -1,0 +1,44 @@
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints
+
+# VS Code
+.vscode/
+
+# Databases
+*.db
+*.sqlite3
+
+# ML Models and Pickles
+*.pkl
+*.h5
+*.joblib
+*.pth
+*.onnx
+wechat_models/
+filtro_predictor.pkl
+
+# Images and Plots (Generated)
+*.png
+*.jpg
+*.jpeg
+*.pdf
+kernel_score.png
+score_hist.png
+
+# Datasets (Uncomment if you want to ignore the whole folder)
+# Dataset/
+
+# OS specific
+.DS_Store
+Thumbs.db
