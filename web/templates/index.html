@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Otimização Inteligente de QR Codes - GA + IA</title>
+    <!-- Google Fonts: Inter e Outfit para tipografia premium -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js para visualizações de gráficos de alta qualidade -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="glass-bg-blur"></div>
+
+    <header class="app-header">
+        <div class="header-logo">
+            <span class="logo-icon">🧬</span>
+            <div class="logo-text">
+                <h1>Otimização de QR Codes</h1>
+                <p class="subtitle">Algoritmo Genético Híbrido & Inteligência Artificial Preditiva</p>
+            </div>
+        </div>
+        <div class="hardware-badges">
+            <span id="cuda-badge" class="badge badge-success">⚡ GPU CUDA: ATIVA</span>
+            <span id="wechat-badge" class="badge badge-success">🤖 WeChat QR: CARREGADO</span>
+        </div>
+    </header>
+
+    <main class="app-container">
+        <!-- SEÇÃO 1: DASHBOARD / CARDS DE METRICAS -->
+        <section class="dashboard-grid">
+            <div class="kpi-card" id="card-total-ext">
+                <span class="kpi-icon">📊</span>
+                <div class="kpi-info">
+                    <h3>Extrações no DB</h3>
+                    <p class="kpi-value" id="val-total-extractions">-</p>
+                </div>
+            </div>
+            <div class="kpi-card" id="card-taxa-sucesso">
+                <span class="kpi-icon">🏆</span>
+                <div class="kpi-info">
+                    <h3>Taxa de Sucesso Geral</h3>
+                    <p class="kpi-value" id="val-taxa-sucesso">-</p>
+                </div>
+            </div>
+            <div class="kpi-card" id="card-imagens">
+                <span class="kpi-icon">🖼️</span>
+                <div class="kpi-info">
+                    <h3>Imagens no Dataset</h3>
+                    <p class="kpi-value" id="val-total-imagens">-</p>
+                </div>
+            </div>
+            <div class="kpi-card highlight" id="card-ganho-ia">
+                <span class="kpi-icon">🧠</span>
+                <div class="kpi-info">
+                    <h3>Ganho da IA (MLP)</h3>
+                    <p class="kpi-value" id="val-ganho-ia">-</p>
+                    <span class="kpi-subtext" id="val-tempo-economizado">-</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- SEÇÃO 2: CONTROLE DO AG E GRAFICOS DE EVOLUÇÃO -->
+        <section class="core-grid">
+            <!-- Painel de Controle GA -->
+            <div class="glass-card panel-ga">
+                <div class="panel-header">
+                    <h2>🧬 Painel do Algoritmo Genético</h2>
+                    <p>Otimize o processamento evolutivo guiado pela rede neural</p>
+                </div>
+                
+                <form id="ga-form" class="ga-settings-form" onsubmit="event.preventDefault();">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="ga-pop">Tamanho da População</label>
+                            <input type="number" id="ga-pop" min="2" max="100" value="10" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="ga-gen">Gerações</label>
+                            <input type="number" id="ga-gen" min="1" max="200" value="10" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group toggle-group">
+                        <label for="ga-use-nn" class="toggle-label">
+                            <span class="toggle-text">Ativar IA (Rede Neural MLP)</span>
+                            <div class="toggle-wrapper">
+                                <input type="checkbox" id="ga-use-nn" checked>
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <button type="button" id="btn-start-ga" class="btn btn-primary btn-glow">
+                        <span class="btn-text">Iniciar Otimização</span>
+                        <span class="btn-icon">🚀</span>
+                    </button>
+                </form>
+
+                <div class="ga-status-area" id="ga-status-container" style="display: none;">
+                    <div class="progress-container">
+                        <div class="progress-labels">
+                            <span id="ga-generation-label">Geração: -</span>
+                            <span id="ga-progress-percent">0%</span>
+                        </div>
+                        <div class="progress-bar-track">
+                            <div class="progress-bar-fill" id="ga-progress-fill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="console-box">
+                        <div class="console-header">Console de Execução</div>
+                        <div class="console-output" id="ga-console-output">
+                            Aguardando inicialização...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráfico de Evolução -->
+            <div class="glass-card panel-chart">
+                <div class="panel-header">
+                    <h2>📈 Curva de Convergência</h2>
+                    <p>Histórico e evolução das gerações de otimização</p>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="evolutionChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- SEÇÃO 3: SANDBOX DE FILTROS INTERATIVOS -->
+        <section class="sandbox-section">
+            <div class="glass-card">
+                <div class="panel-header">
+                    <h2>🎨 Sandbox de Filtros ("Ponto Cego")</h2>
+                    <p>Faça upload de um QR Code e simule interativamente a resposta do algoritmo binarizador em tempo real</p>
+                </div>
+
+                <div class="sandbox-grid">
+                    <!-- Sliders de Filtro -->
+                    <div class="sandbox-controls">
+                        <div class="upload-area" id="drop-zone">
+                            <span class="upload-icon">📥</span>
+                            <p>Arraste uma imagem de QR Code ou clique para fazer upload</p>
+                            <input type="file" id="sandbox-file" accept="image/*" style="display: none;">
+                        </div>
+
+                        <div class="sliders-container disabled" id="sliders-box">
+                            <div class="slider-group">
+                                <div class="slider-header">
+                                    <label for="slide-ksize">Suavização (Median Blur)</label>
+                                    <span class="slider-val" id="val-ksize">1</span>
+                                </div>
+                                <input type="range" id="slide-ksize" min="1" max="9" step="2" value="1">
+                            </div>
+
+                            <div class="slider-group">
+                                <div class="slider-header">
+                                    <label for="slide-contrast">Contraste (%)</label>
+                                    <span class="slider-val" id="val-contrast">100</span>
+                                </div>
+                                <input type="range" id="slide-contrast" min="50" max="250" value="100">
+                            </div>
+
+                            <div class="slider-group">
+                                <div class="slider-header">
+                                    <label for="slide-bright">Brilho (Offset)</label>
+                                    <span class="slider-val" id="val-bright">100</span>
+                                </div>
+                                <input type="range" id="slide-bright" min="50" max="250" value="100">
+                            </div>
+
+                            <div class="slider-group">
+                                <div class="slider-header">
+                                    <label for="slide-sat">Saturação (%)</label>
+                                    <span class="slider-val" id="val-sat">100</span>
+                                </div>
+                                <input type="range" id="slide-sat" min="50" max="250" value="100">
+                            </div>
+
+                            <div class="slider-group">
+                                <div class="slider-header">
+                                    <label for="slide-sharp">Nitidez (Sharpness)</label>
+                                    <span class="slider-val" id="val-sharp">0</span>
+                                </div>
+                                <input type="range" id="slide-sharp" min="0" max="150" value="0">
+                            </div>
+
+                            <div class="slider-group">
+                                <div class="slider-header">
+                                    <label for="slide-clahe">Equalização (CLAHE)</label>
+                                    <span class="slider-val" id="val-clahe">0</span>
+                                </div>
+                                <input type="range" id="slide-clahe" min="0" max="40" value="0">
+                            </div>
+
+                            <div class="slider-group">
+                                <div class="slider-header">
+                                    <label for="slide-tblock">Tamanho do Bloco (Threshold)</label>
+                                    <span class="slider-val" id="val-tblock">11</span>
+                                </div>
+                                <input type="range" id="slide-tblock" min="3" max="51" step="2" value="11">
+                            </div>
+
+                            <div class="slider-group">
+                                <div class="slider-header">
+                                    <label for="slide-tc">Constante C (Threshold)</label>
+                                    <span class="slider-val" id="val-tc">2</span>
+                                </div>
+                                <input type="range" id="slide-tc" min="0" max="20" value="2">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Visualização das Imagens -->
+                    <div class="sandbox-viewer">
+                        <div class="view-panel">
+                            <div class="image-box-wrapper">
+                                <h4>Imagem Bruta (Original)</h4>
+                                <div class="image-box" id="img-box-raw">
+                                    <span class="img-placeholder">Faça upload de uma imagem</span>
+                                </div>
+                            </div>
+                            <div class="image-box-wrapper">
+                                <h4>Resultado Binarizado Processado</h4>
+                                <div class="image-box" id="img-box-processed">
+                                    <span class="img-placeholder">Aguardando imagem...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="decode-status-box" id="decode-result-box" style="display: none;">
+                            <span class="status-icon" id="decode-status-icon">❌</span>
+                            <div class="status-info">
+                                <h3>Texto Decodificado:</h3>
+                                <p id="decode-status-text" class="decode-text">Não detectado</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="app-footer">
+        <p>Desenvolvido com 💜 & 💻 | IA MLPRegressor & Algoritmo Genético OpenCV CUDA</p>
+    </footer>
+
+    <script src="/static/js/app.js?v=3"></script>
+</body>
+</html>
