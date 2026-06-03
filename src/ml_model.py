@@ -69,12 +69,13 @@ def treinar_modelo(test_size=0.2, random_state=42):
         print(f"⚠️ Amostras insuficientes para treinar o modelo ({len(X)} encontradas, mínimo de 20).")
         return None
 
-    # Pipeline que escala as entradas e aplica a MLPRegressor
+    # Pipeline que escala as entradas e aplica a MLPRegressor (Otimizado para tabelas pequenas)
     model = Pipeline([
         ('scaler', StandardScaler()),
         ('mlp', MLPRegressor(
-            hidden_layer_sizes=(64, 32), 
+            hidden_layer_sizes=(32, 16), 
             activation='relu', 
+            solver='lbfgs', # Solver extremamente superior para poucos dados
             max_iter=1000, 
             random_state=random_state
         ))

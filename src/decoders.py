@@ -33,61 +33,74 @@ def inicializar_wechat():
             
     return _local_detectors.wechat
 
-def decode_qr_image(img, fast_mode=True):
+def decode_qr_image(img, fast_mode=True, usar_wechat=True):
     """
     Pipeline de decodificação unificado e resiliente.
-    Se fast_mode=True, ignora fallbacks lentos e redundantes para acelerar o Algoritmo Genético.
+    Se usar_wechat=True, tenta o modelo com IA do WeChat.
+    Se usar_wechat=False ou falhar, usa o detector nativo/rápido do OpenCV.
+    Se fast_mode=True, ignora fallbacks lentos de rotação.
     """
-    # Garante que a imagem esteja em 3 canais ou escala de cinza
     if img is None:
         return None, None
 
     # OTIMIZAÇÃO 1: Evita processar imagens sólidas sem informação (brancas ou pretas)
-    # O desvio padrão (std) de uma imagem de cor sólida é 0.
     try:
-        if np.std(img) < 5.0:
+        _, stddev = cv2.meanStdDev(img)
+        if stddev.mean() < 5.0:
             return None, None
     except Exception:
         pass
-        
-    # Método 1: WeChat QR Code Detector (Deep Learning)
-    wechat = inicializar_wechat()
-    if wechat is not None:
-        try:
-            # detectAndDecode retorna uma tupla (lista_de_textos, lista_de_pontos)
-            res = wechat.detectAndDecode(img)
-            if res and len(res) == 2:
-                texts, points = res
-                if texts and len(texts) > 0 and texts[0]:
-                    txt = texts[0]
-                    # Garante decodificação de bytes em string caso necessário
-                    if isinstance(txt, bytes):
-                        txt = txt.decode('utf-8', errors='ignore')
-                    
-                    pts = points[0] if points and len(points) > 0 else None
-                    return txt, pts
-        except Exception:
-            pass
+
+    # 1. WeChat QR Code Detector (IA / Deep Learning)
+    if usar_wechat:
+        wechat = inicializar_wechat()
+        if wechat is not None:
+            try:
+                res = wechat.detectAndDecode(img)
+                if res and len(res) == 2:
+                    texts, points = res
+                    if points and len(points) > 0 and len(points[0]) > 0:
+                        pts = points[0]
+                        txt = texts[0] if texts and len(texts) > 0 else ""
+                        if isinstance(txt, bytes):
+                            txt = txt.decode('utf-8', errors='ignore')
+                        return txt, pts
+            except Exception:
+                pass
+
+        if fast_mode:
+            return None, None
+
+    # 2. OpenCV Standard QRCodeDetector (Nativo e Rápido)
+    detector = cv2.QRCodeDetector()
+    try:
+        if fast_mode:
+            # Se for fast_mode (utilizado no AG para buscar o quadrado), usamos apenas o detect() que é ultra-rápido
+            retval, points = detector.detect(img)
+            if retval and points is not None and len(points) > 0:
+                if len(points.shape) == 3:
+                    points = points[0]
+                return "", points
+            return None, None
+        else:
+            # Caso contrário, tenta decodificar por completo
+            result = detector.detectAndDecode(img)
+            if isinstance(result, tuple):
+                if len(result) == 3:
+                    decoded, points, _ = result
+                elif len(result) == 4:
+                    _, decoded, points, _ = result
+            if decoded:
+                if points is not None and len(points.shape) == 3:
+                    points = points[0]
+                return decoded, points
+    except Exception:
+        pass
 
     if fast_mode:
         return None, None
 
-    # Método 2: OpenCV Standard QRCodeDetector
-    detector = cv2.QRCodeDetector()
-    decoded, points = None, None
-    try:
-        result = detector.detectAndDecode(img)
-        if isinstance(result, tuple):
-            if len(result) == 3:
-                decoded, points, _ = result
-            elif len(result) == 4:
-                _, decoded, points, _ = result
-        if decoded:
-            return decoded, points
-    except Exception:
-        pass
-
-    # Fallback com imagens pré-processadas no detector padrão
+    # Fallbacks mais lentos para decodificação completa (somente se fast_mode=False)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if len(img.shape) == 3 else img
     tentativas = [
         gray,
@@ -102,6 +115,8 @@ def decode_qr_image(img, fast_mode=True):
                 dig = result[0] if len(result) > 0 else None
                 pts = result[1] if len(result) > 1 else None
                 if dig:
+                    if pts is not None and len(pts.shape) == 3:
+                        pts = pts[0]
                     return dig, pts
         except Exception:
             continue
@@ -112,13 +127,14 @@ def decode_qr_image(img, fast_mode=True):
         M = cv2.getRotationMatrix2D((w // 2, h // 2), angle, 1.0)
         rotated = cv2.warpAffine(img, M, (w, h))
         
-        # Tenta detector padrão com imagem rotacionada
         try:
             result = detector.detectAndDecode(rotated)
             if isinstance(result, tuple):
                 dig = result[0] if len(result) > 0 else None
                 pts = result[1] if len(result) > 1 else None
                 if dig:
+                    if pts is not None and len(pts.shape) == 3:
+                        pts = pts[0]
                     return dig, pts
         except Exception:
             continue

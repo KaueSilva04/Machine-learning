@@ -25,9 +25,10 @@ def cmd_run_ga(args):
     """Inicia o ciclo evolutivo do Algoritmo Genético no terminal."""
     inicializar_db()
     use_nn = not args.no_nn
+    usar_wechat = not args.no_wechat
     
     print(f"🧬 Iniciando Algoritmo Genético no terminal...")
-    print(f"🔹 População: {args.pop} | Gerações: {args.gen} | Usar IA: {use_nn}")
+    print(f"🔹 População: {args.pop} | Gerações: {args.gen} | Usar IA: {use_nn} | Usar WeChat (IA): {usar_wechat}")
     
     def console_progress(g, total_g, melhor_score, media_score, melhor_cfg):
         print(f"   🧬 [Geração {g:02d}/{total_g}] 🏆 Melhor Score: {melhor_score:.2%} | 📈 Média: {media_score:.2%}")
@@ -37,7 +38,10 @@ def cmd_run_ga(args):
         use_nn=use_nn,
         pop_size=args.pop,
         gen_count=args.gen,
-        progress_callback=console_progress
+        usar_wechat=usar_wechat,
+        progress_callback=console_progress,
+        batch_size=args.batch_size,
+        resize_images=not args.no_resize
     )
     
     if res:
@@ -134,7 +138,10 @@ def main():
     parser_ga = subparsers.add_parser("run-ga", help="Inicia a otimização evolutiva no terminal")
     parser_ga.add_argument("--pop", type=int, default=10, help="Tamanho da população (default: 10)")
     parser_ga.add_argument("--gen", type=int, default=10, help="Quantidade de gerações (default: 10)")
+    parser_ga.add_argument("--batch-size", type=int, default=50, help="Tamanho do lote de imagens por geração (default: 50, use 0 para todas)")
     parser_ga.add_argument("--no-nn", action="store_true", help="Desativa o guimento preditivo por Rede Neural")
+    parser_ga.add_argument("--no-wechat", action="store_true", help="Usa o leitor padrão leve do OpenCV ao invés da IA do WeChat")
+    parser_ga.add_argument("--no-resize", action="store_true", help="Desativa o redimensionamento limitador para imagens gigantes")
 
     # 3. ml-train
     subparsers.add_parser("ml-train", help="Retreina a Rede Neural MLPRegressor com os dados do DB")

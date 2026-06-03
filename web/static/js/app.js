@@ -20,7 +20,32 @@ const initApp = () => {
         btn.addEventListener("click", iniciarAlgoritmoGenetico);
     }
 
-    // 4. Configurar Drag and Drop da Sandbox de Filtros
+    // 4. Configurar eventos do Botão de Limpeza
+    const btnClear = document.getElementById("btn-clear-db");
+    if (btnClear) {
+        btnClear.addEventListener("click", async () => {
+            if(confirm("⚠️ ATENÇÃO!\nTem certeza que deseja apagar todo o histórico de testes e o cérebro treinado da Inteligência Artificial?")) {
+                btnClear.disabled = true;
+                btnClear.innerHTML = `<span class="btn-text">Limpando...</span><span class="btn-icon">⏳</span>`;
+                try {
+                    const response = await fetch('/api/clear-db', { method: 'POST' });
+                    const result = await response.json();
+                    if(result.status === "success") {
+                        alert("✅ " + result.message);
+                        location.reload(); // Recarrega para zerar os gráficos na tela
+                    } else {
+                        alert("❌ Erro: " + result.message);
+                        location.reload();
+                    }
+                } catch(e) {
+                    alert("❌ Erro de conexão com o servidor.");
+                    location.reload();
+                }
+            }
+        });
+    }
+
+    // 5. Configurar Drag and Drop da Sandbox de Filtros
     configurarSandboxUpload();
 };
 
@@ -171,14 +196,20 @@ function iniciarAlgoritmoGenetico() {
     const btn = document.getElementById("btn-start-ga");
     const pop = document.getElementById("ga-pop").value;
     const gen = document.getElementById("ga-gen").value;
+    const batchSize = document.getElementById("ga-batch").value;
     const useNn = document.getElementById("ga-use-nn").checked;
+    const usarWechat = document.getElementById("ga-use-wechat").checked;
+    const resizeImages = document.getElementById("ga-resize-images").checked;
 
     // Bloquear controles durante execução
     btn.disabled = true;
     btn.classList.add("disabled");
     document.getElementById("ga-pop").disabled = true;
     document.getElementById("ga-gen").disabled = true;
+    document.getElementById("ga-batch").disabled = true;
     document.getElementById("ga-use-nn").disabled = true;
+    document.getElementById("ga-use-wechat").disabled = true;
+    document.getElementById("ga-resize-images").disabled = true;
 
     // Reset de status e console
     const statusContainer = document.getElementById("ga-status-container");
@@ -210,7 +241,7 @@ function iniciarAlgoritmoGenetico() {
     evolutionChart.update();
 
     // Conectar canal Server-Sent Events (SSE)
-    const eventSource = new EventSource(`/api/run-ga?use_nn=${useNn}&pop=${pop}&gen=${gen}`);
+    const eventSource = new EventSource(`/api/run-ga?use_nn=${useNn}&pop=${pop}&gen=${gen}&usar_wechat=${usarWechat}&batch_size=${batchSize}&resize_images=${resizeImages}`);
 
     eventSource.onmessage = (event) => {
         const data = JSON.parse(event.data);
@@ -284,7 +315,10 @@ function liberarControlesGA() {
     btn.classList.remove("disabled");
     document.getElementById("ga-pop").disabled = false;
     document.getElementById("ga-gen").disabled = false;
+    document.getElementById("ga-batch").disabled = false;
     document.getElementById("ga-use-nn").disabled = false;
+    document.getElementById("ga-use-wechat").disabled = false;
+    document.getElementById("ga-resize-images").disabled = false;
 }
 
 // --- SANDBOX DE FILTROS INTERATIVOS ---
@@ -337,6 +371,16 @@ function configurarSandboxUpload() {
             debounceTimeout = setTimeout(atualizarFiltrosSandbox, 80);
         });
     });
+
+    const sandboxWechatCheck = document.getElementById("sandbox-use-wechat");
+    if (sandboxWechatCheck) {
+        sandboxWechatCheck.addEventListener("change", atualizarFiltrosSandbox);
+    }
+    
+    const sandboxResizeCheck = document.getElementById("sandbox-resize-images");
+    if (sandboxResizeCheck) {
+        sandboxResizeCheck.addEventListener("change", atualizarFiltrosSandbox);
+    }
 }
 
 function carregarImagemSandbox(file) {
@@ -371,8 +415,12 @@ async function atualizarFiltrosSandbox() {
     formData.append("sat", document.getElementById("slide-sat").value);
     formData.append("sharp", document.getElementById("slide-sharp").value);
     formData.append("clahe", document.getElementById("slide-clahe").value);
+    formData.append("thresh_type", document.getElementById("slide-ttype").value);
+    formData.append("thresh_val", document.getElementById("slide-tval").value);
     formData.append("thresh_block", document.getElementById("slide-tblock").value);
     formData.append("thresh_c", document.getElementById("slide-tc").value);
+    formData.append("usar_wechat", document.getElementById("sandbox-use-wechat").checked);
+    formData.append("resize_images", document.getElementById("sandbox-resize-images").checked);
 
     try {
         const response = await fetch("/api/test-filter", {

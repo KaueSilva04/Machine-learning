@@ -82,6 +82,10 @@
                             <label for="ga-gen">Gerações</label>
                             <input type="number" id="ga-gen" min="1" max="200" value="10" required>
                         </div>
+                        <div class="form-group">
+                            <label for="ga-batch" title="Use 0 para testar todas imagens">Lote (Imagens)</label>
+                            <input type="number" id="ga-batch" min="0" max="10000" value="50" required>
+                        </div>
                     </div>
                     
                     <div class="form-group toggle-group">
@@ -94,9 +98,34 @@
                         </label>
                     </div>
 
+                    <div class="form-group toggle-group">
+                        <label for="ga-use-wechat" class="toggle-label">
+                            <span class="toggle-text">Usar WeChat QR (IA de Detecção)</span>
+                            <div class="toggle-wrapper">
+                                <input type="checkbox" id="ga-use-wechat" checked>
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="form-group toggle-group">
+                        <label for="ga-resize-images" class="toggle-label" title="Evita que o detector padrão do OpenCV falhe em imagens com 4000px+. Mantenha ativo se WeChat estiver desativado!">
+                            <span class="toggle-text">Redimensionamento Inteligente (1600px)</span>
+                            <div class="toggle-wrapper">
+                                <input type="checkbox" id="ga-resize-images" checked>
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </label>
+                    </div>
+
                     <button type="button" id="btn-start-ga" class="btn btn-primary btn-glow">
                         <span class="btn-text">Iniciar Otimização</span>
                         <span class="btn-icon">🚀</span>
+                    </button>
+                    
+                    <button type="button" id="btn-clear-db" class="btn" style="background-color: #ff4757; color: white; margin-top: 15px; border-color: #ff4757; box-shadow: 0 4px 15px rgba(255, 71, 87, 0.3);">
+                        <span class="btn-text">Zerar Banco de Dados e IA</span>
+                        <span class="btn-icon">🗑️</span>
                     </button>
                 </form>
 
@@ -149,6 +178,26 @@
                             <input type="file" id="sandbox-file" accept="image/*" style="display: none;">
                         </div>
 
+                        <div class="form-group toggle-group sandbox-toggle" style="margin-top: 15px; margin-bottom: 5px; padding: 0 10px;">
+                            <label for="sandbox-use-wechat" class="toggle-label">
+                                <span class="toggle-text" style="font-size: 0.9rem; color: var(--text-muted);">Usar IA do WeChat QR</span>
+                                <div class="toggle-wrapper">
+                                    <input type="checkbox" id="sandbox-use-wechat" checked>
+                                    <span class="toggle-slider"></span>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-group toggle-group sandbox-toggle" style="margin-top: 5px; margin-bottom: 15px; padding: 0 10px;">
+                            <label for="sandbox-resize-images" class="toggle-label">
+                                <span class="toggle-text" style="font-size: 0.9rem; color: var(--text-muted);">Redimensionar (1600px)</span>
+                                <div class="toggle-wrapper">
+                                    <input type="checkbox" id="sandbox-resize-images" checked>
+                                    <span class="toggle-slider"></span>
+                                </div>
+                            </label>
+                        </div>
+
                         <div class="sliders-container disabled" id="sliders-box">
                             <div class="slider-group">
                                 <div class="slider-header">
@@ -192,18 +241,36 @@
 
                             <div class="slider-group">
                                 <div class="slider-header">
-                                    <label for="slide-clahe">Equalização (CLAHE)</label>
+                                    <label for="slide-clahe">Equalização CLAHE</label>
                                     <span class="slider-val" id="val-clahe">0</span>
                                 </div>
-                                <input type="range" id="slide-clahe" min="0" max="40" value="0">
+                                <input type="range" id="slide-clahe" min="0" max="50" value="0">
                             </div>
 
-                            <div class="slider-group">
+                            <div class="slider-group" style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                <label style="display: block; margin-bottom: 8px; color: var(--accent);">Opções de Limiarização (Threshold)</label>
+                                
+                                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                    <div style="flex: 1;">
+                                        <label for="slide-ttype" style="font-size: 0.8rem; margin-bottom: 4px; display: block;">Tipo de Threshold</label>
+                                        <select id="slide-ttype" style="width: 100%; padding: 6px; border-radius: 4px; background: rgba(0,0,0,0.5); color: white; border: 1px solid rgba(255,255,255,0.2);">
+                                            <option value="0">Nenhum (Cinza)</option>
+                                            <option value="1">Global</option>
+                                            <option value="2" selected>Adaptativo</option>
+                                        </select>
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <label for="slide-tval" style="font-size: 0.8rem; margin-bottom: 4px; display: block;">Valor (Apenas Global)</label>
+                                        <input type="range" id="slide-tval" min="0" max="255" value="127" style="width: 100%;">
+                                        <span class="slider-val" id="val-tval" style="font-size: 0.8rem; text-align: center; display: block;">127</span>
+                                    </div>
+                                </div>
+
                                 <div class="slider-header">
-                                    <label for="slide-tblock">Tamanho do Bloco (Threshold)</label>
+                                    <label for="slide-tblock">Tamanho Bloco (Adaptativo)</label>
                                     <span class="slider-val" id="val-tblock">11</span>
                                 </div>
-                                <input type="range" id="slide-tblock" min="3" max="51" step="2" value="11">
+                                <input type="range" id="slide-tblock" min="3" max="55" step="2" value="11">
                             </div>
 
                             <div class="slider-group">
@@ -249,6 +316,6 @@
         <p>Desenvolvido com 💜 & 💻 | IA MLPRegressor & Algoritmo Genético OpenCV CUDA</p>
     </footer>
 
-    <script src="/static/js/app.js?v=3"></script>
+    <script src="/static/js/app.js?v=6"></script>
 </body>
 </html>

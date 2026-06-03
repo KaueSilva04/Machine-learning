@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # Apenas os parâmetros reais que influenciam ativamente o processamento
-FILTER_KEYS = ['kernel_size', 'contrast', 'bright', 'sat', 'sharp', 'clahe', 'thresh_block', 'thresh_c']
+FILTER_KEYS = ['kernel_size', 'contrast', 'bright', 'sharp', 'clahe', 'thresh_type', 'thresh_val', 'thresh_block', 'thresh_c']
 
 def aplicar_filtros_cpu(img_original, cfg):
     """Aplica o pipeline de filtros de imagem em CPU."""
@@ -21,13 +21,7 @@ def aplicar_filtros_cpu(img_original, cfg):
             beta = cfg["bright"] - 100
             img = cv2.convertScaleAbs(img, alpha=alpha, beta=beta)
 
-        # 3. Saturação (Espaço de Cor HSV)
-        if cfg.get("sat", 100) != 100:
-            hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-            hsv[:,:,1] = np.clip(hsv[:,:,1] * (cfg["sat"] / 100.0), 0, 255).astype(np.uint8)
-            img = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
-
-        # 4. Nitidez (Sharpening via filtro convolucional 2D)
+        # 3. Nitidez (Sharpening via filtro convolucional 2D)
         if cfg.get("sharp", 0) > 0:
             sharp_factor = cfg["sharp"] / 100.0
             kernel = np.array([
@@ -45,20 +39,28 @@ def aplicar_filtros_cpu(img_original, cfg):
             clahe = cv2.createCLAHE(clipLimit=cfg["clahe"]/10.0, tileGridSize=(8,8))
             gray = clahe.apply(gray)
             
-        # 7. Limiarização Adaptativa (Adaptive Thresholding)
-        block_size = cfg.get("thresh_block", 11)
-        if block_size % 2 == 0:
-            block_size += 1
-        if block_size < 3:
-            block_size = 3
-            
-        return cv2.adaptiveThreshold(
-            gray, 255, 
-            cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-            cv2.THRESH_BINARY, 
-            block_size, 
-            cfg.get("thresh_c", 2)
-        )
+        # 7. Limiarização (Thresholding)
+        ttype = cfg.get("thresh_type", 2)
+        if ttype == 0:
+            return gray
+        elif ttype == 1:
+            tval = cfg.get("thresh_val", 127)
+            _, binary = cv2.threshold(gray, tval, 255, cv2.THRESH_BINARY)
+            return binary
+        else:
+            block_size = cfg.get("thresh_block", 11)
+            if block_size % 2 == 0:
+                block_size += 1
+            if block_size < 3:
+                block_size = 3
+                
+            return cv2.adaptiveThreshold(
+                gray, 255, 
+                cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                cv2.THRESH_BINARY, 
+                block_size, 
+                cfg.get("thresh_c", 2)
+            )
     except Exception:
         # Fallback de segurança para escala de cinza pura
         return cv2.cvtColor(img_original, cv2.COLOR_BGR2GRAY)
@@ -98,6 +100,9 @@ def aplicar_filtros_cuda(img_original, cfg):
             gpu_hsv = cv2.cuda.merge(channels)
             gpu_img = cv2.cuda.cvtColor(gpu_hsv, cv2.COLOR_HSV2BGR)
 
+        # 5. Tons de cinza (GPU)
+        gpu_gray = cv2.cuda.cvtColor(gpu_img, cv2.COLOR_BGR2GRAY)
+
         # 4. Nitidez (GPU via filtro linear CUDA 2D)
         if cfg.get("sharp", 0) > 0:
             sharp_factor = cfg["sharp"] / 100.0
@@ -107,12 +112,9 @@ def aplicar_filtros_cuda(img_original, cfg):
                 [0, -1, 0]
             ], dtype=np.float32)
             
-            # Filtro linear CUDA 2D
-            filter_gpu = cv2.cuda.createLinearFilter(gpu_img.type(), gpu_img.type(), kernel)
-            gpu_img = filter_gpu.apply(gpu_img)
-
-        # 5. Tons de cinza (GPU)
-        gpu_gray = cv2.cuda.cvtColor(gpu_img, cv2.COLOR_BGR2GRAY)
+            # Filtro linear CUDA 2D (agora rodando perfeitamente em 1 canal!)
+            filter_gpu = cv2.cuda.createLinearFilter(gpu_gray.type(), gpu_gray.type(), kernel)
+            gpu_gray = filter_gpu.apply(gpu_gray)
 
         # 6. CLAHE (GPU)
         if cfg.get("clahe", 0) > 0:
@@ -120,23 +122,31 @@ def aplicar_filtros_cuda(img_original, cfg):
             stream = cv2.cuda_Stream()
             gpu_gray = clahe_gpu.apply(gpu_gray, stream)
 
-        # Download do resultado final em cinza para a CPU operar a limiarização
-        gray_cpu = gpu_gray.download()
-
-        # 7. Limiarização Adaptativa
-        block_size = cfg.get("thresh_block", 11)
-        if block_size % 2 == 0:
-            block_size += 1
-        if block_size < 3:
-            block_size = 3
+        # 7. Limiarização
+        ttype = cfg.get("thresh_type", 2)
+        if ttype == 0:
+            return gpu_gray.download()
+        elif ttype == 1:
+            tval = cfg.get("thresh_val", 127)
+            _, gpu_binary = cv2.cuda.threshold(gpu_gray, tval, 255, cv2.THRESH_BINARY)
+            return gpu_binary.download()
+        else:
+            # Download do resultado final em cinza para a CPU operar a limiarização adaptativa
+            gray_cpu = gpu_gray.download()
             
-        return cv2.adaptiveThreshold(
-            gray_cpu, 255, 
-            cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-            cv2.THRESH_BINARY, 
-            block_size, 
-            cfg.get("thresh_c", 2)
-        )
+            block_size = cfg.get("thresh_block", 11)
+            if block_size % 2 == 0:
+                block_size += 1
+            if block_size < 3:
+                block_size = 3
+                
+            return cv2.adaptiveThreshold(
+                gray_cpu, 255, 
+                cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                cv2.THRESH_BINARY, 
+                block_size, 
+                cfg.get("thresh_c", 2)
+            )
     except Exception as e:
         # Em caso de erro na CUDA, faz o fallback gracioso para a CPU
         return aplicar_filtros_cpu(img_original, cfg)
