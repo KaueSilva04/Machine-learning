@@ -125,19 +125,96 @@ async def test_filter(
         img_proc = aplicar_filtros(img, cfg, usar_cuda=True)
         
         # Tenta decodificar usando decodificador unificado (WeChat + Fallbacks)
-        decoded_text, _ = decode_qr_image(img_proc, usar_wechat=usar_wechat)
+        decoded_text, pts = decode_qr_image(img_proc, usar_wechat=usar_wechat)
         
+        has_text = bool(decoded_text and decoded_text.strip())
+        has_square = pts is not None and len(pts) > 0
+        
+        # Se encontrou o quadrado (com ou sem texto), desenha ele na imagem!
+        if has_square:
+            try:
+                pts_arr = np.int32(pts).reshape(-1, 2)
+                cv2.polylines(img_proc, [pts_arr], True, (0, 255, 0), 3)
+            except Exception:
+                pass
+                
         # Converte imagem final processada em base64 PNG
         _, encoded_img = cv2.imencode(".png", img_proc)
         base64_img = base64.b64encode(encoded_img).decode("utf-8")
         
+        if has_text:
+            final_status = decoded_text
+            success_flag = True
+        elif has_square:
+            final_status = "Quadrado (Bounding Box) Detectado, mas falhou em ler o texto."
+            success_flag = True  # Mostrará checkmark verde para indicar que achou algo
+        else:
+            final_status = "Não detectado"
+            success_flag = False
+        
         return {
             "success": True,
-            "has_decoded": decoded_text is not None,
-            "decoded_text": decoded_text if decoded_text else "Não detectado",
+            "has_decoded": success_flag,
+            "decoded_text": final_status,
             "image": f"data:image/png;base64,{base64_img}"
         }
     except Exception as e:
+        return {"success": False, "message": str(e)}
+
+@app.post("/api/auto-filter")
+async def auto_filter(
+    file: UploadFile = File(...)
+):
+    """
+    Botão Mágico (Oráculo): Recebe uma imagem, gera configurações aleatórias,
+    pergunta para a Rede Neural qual é a melhor, e retorna essa configuração.
+    """
+    try:
+        from src.ga_engine import calcular_caracteristicas_imagem, gerar_entidade
+        from src.filters import FILTER_KEYS
+        from src.ml_model import carregar_modelo, IMAGE_KEYS
+        import random
+
+        # Lendo a imagem
+        contents = await file.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None:
+            return {"success": False, "message": "Imagem inválida."}
+            
+        model = carregar_modelo()
+        if model is None:
+            return {"success": False, "message": "Rede Neural não treinada. Rode o algoritmo genético primeiro."}
+            
+        # Extrai os 8 metadados na ordem exata
+        img_features = calcular_caracteristicas_imagem(img)
+        img_vals = [img_features[k] for k in IMAGE_KEYS]
+        
+        # Gera 5000 filtros e faz a predição em BATCH (extremamente rápido)
+        configs = []
+        X_batch = []
+        
+        for _ in range(5000):
+            cfg = gerar_entidade()
+            configs.append(cfg)
+            filter_vals = [cfg[k] for k in FILTER_KEYS]
+            X_batch.append(img_vals + filter_vals)
+            
+        X_batch = np.array(X_batch, dtype=float)
+        scores = model.predict(X_batch)
+        
+        best_idx = int(np.argmax(scores))
+        best_score = float(scores[best_idx])
+        best_cfg = configs[best_idx]
+                
+        return {
+            "success": True,
+            "predicted_score": best_score,
+            "best_filter": best_cfg
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         return {"success": False, "message": str(e)}
 
 @app.get("/api/run-ga")

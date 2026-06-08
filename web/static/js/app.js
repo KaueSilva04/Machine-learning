@@ -381,6 +381,88 @@ function configurarSandboxUpload() {
     if (sandboxResizeCheck) {
         sandboxResizeCheck.addEventListener("change", atualizarFiltrosSandbox);
     }
+
+    const btnMagicAi = document.getElementById("btn-magic-ai");
+    if (btnMagicAi) {
+        btnMagicAi.addEventListener("click", rodarOraculoIA);
+    }
+}
+
+async function rodarOraculoIA() {
+    if (!currentSandboxFile) {
+        alert("Faça o upload de uma imagem primeiro!");
+        return;
+    }
+
+    const btn = document.getElementById("btn-magic-ai");
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="btn-text">Consultando Oráculo... ⏳</span>';
+    btn.disabled = true;
+
+    const formData = new FormData();
+    formData.append("file", currentSandboxFile);
+
+    try {
+        const response = await fetch("/api/auto-filter", {
+            method: "POST",
+            body: formData
+        });
+        const res = await response.json();
+
+        if (res.success) {
+            const cfg = res.best_filter;
+            
+            // Atualizar os sliders visuais
+            document.getElementById("slide-ksize").value = cfg.kernel_size;
+            document.getElementById("val-ksize").innerText = cfg.kernel_size;
+            
+            document.getElementById("slide-contrast").value = cfg.contrast;
+            document.getElementById("val-contrast").innerText = cfg.contrast;
+            
+            document.getElementById("slide-bright").value = cfg.bright;
+            document.getElementById("val-bright").innerText = cfg.bright;
+            
+            document.getElementById("slide-sat").value = cfg.saturation;
+            document.getElementById("val-sat").innerText = cfg.saturation;
+            
+            document.getElementById("slide-sharp").value = cfg.sharp;
+            document.getElementById("val-sharp").innerText = cfg.sharp;
+            
+            document.getElementById("slide-clahe").value = cfg.clahe;
+            document.getElementById("val-clahe").innerText = cfg.clahe;
+
+            document.getElementById("slide-ttype").value = cfg.thresh_type;
+
+            document.getElementById("slide-tval").value = cfg.thresh_val;
+            document.getElementById("val-tval").innerText = cfg.thresh_val;
+            
+            document.getElementById("slide-tblock").value = cfg.thresh_block;
+            document.getElementById("val-tblock").innerText = cfg.thresh_block;
+            
+            document.getElementById("slide-tc").value = cfg.thresh_c;
+            document.getElementById("val-tc").innerText = cfg.thresh_c;
+
+            console.log("IA Previu Score de:", res.predicted_score);
+            
+            // Dispara o processamento para a imagem mudar na hora
+            await atualizarFiltrosSandbox();
+            
+            btn.innerHTML = `<span class="btn-text">Previsão: ${(res.predicted_score * 100).toFixed(1)}% de Sucesso! ✨</span>`;
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }, 3000);
+        } else {
+            alert(res.message);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    } catch (e) {
+        console.error("Erro ao rodar IA", e);
+        alert("Erro ao comunicar com o servidor da IA.");
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
 }
 
 function carregarImagemSandbox(file) {
